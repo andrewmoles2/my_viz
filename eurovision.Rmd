@@ -1,0 +1,100 @@
+---
+title: "eurovision"
+author: "Andrew Moles"
+date: '2022-06-23'
+output: html_document
+---
+
+Load in data and libraries
+
+```{r}
+library(dplyr)
+library(ggplot2)
+#install.packages("remotes")
+library(remotes)
+install_github("https://github.com/jimjam-slam/ggflags")
+library(ggflags)
+
+eurovision <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-05-17/eurovision.csv')
+
+```
+looking at data
+```{r}
+glimpse(eurovision)
+head(eurovision)
+
+unique(eurovision$section)
+
+eurovision_finals <- eurovision %>%
+  filter(section == "grand-final" | section == "final")
+eurovision_finals
+```
+
+get emojis
+```{r}
+flags <- eurovision_finals$country_emoji
+flags
+
+flag_clean <- gsub(":flag_", "", x = flags) %>% gsub(":", "", x = .)
+
+eurovision_finals$flag_clean <- flag_clean
+```
+
+
+most wins
+```{r}
+eurovision_finals %>%
+  filter(winner == TRUE) %>%
+  count(artist_country, year) %>%
+  arrange(desc(year))
+
+artist_flags <- eurovision_finals %>% select(artist_country, flag_clean) %>%
+  filter(!duplicated(flag_clean))
+
+eurovision_finals$winner_int <- as.integer(eurovision_finals$winner)
+# now filter for final and grand-final, agg by country
+unique(eurovision$section)
+# calculate avg points and rank, and total wins and year
+country_agg <- eurovision_finals %>%
+  filter(section == "final" | section == "grand-final") %>%
+  group_by(artist_country) %>%
+  summarise(avg_points = mean(total_points, na.rm = TRUE),
+            avg_rank = mean(rank, na.rm = TRUE),
+            tot_wins = sum(winner_int, na.rm = TRUE),
+            tot_years = n()) %>%
+  arrange(desc(tot_wins)) %>%
+  # calc win ratio (tot_wins/tot_years)
+  mutate(win_ratio = (tot_wins/tot_years)*100) %>%
+  arrange(desc(win_ratio))
+
+country_agg
+
+country_agg <- left_join(country_agg, artist_flags, by = "artist_country")
+
+library(forcats)
+
+country_agg %>%
+  filter(tot_wins > 0) %>%
+  mutate(artist_country = fct_reorder(artist_country, win_ratio)) %>%
+  ggplot(aes(x = win_ratio, y = artist_country)) +
+  geom_bar(stat = "identity")
+
+my_plot <- country_agg %>%
+  filter(tot_wins > 0) %>%
+  ggplot(aes(x = avg_points, y = win_ratio, country = flag_clean)) +
+  geom_flag() +
+  labs(title = "Eurovision coutries win ratios!",
+       x = "Average points per country",
+       y = "Countries percent win ratio: (wins/number years competing)",
+       caption = "<your name> MISDI code camp") +
+  scale_x_continuous(breaks = seq(from = 0, to = 200, by = 25)) +
+  scale_y_continuous(breaks = seq(from = 0, to = 20, by = 2)) +
+  theme_minimal(base_family = "Avenir")
+
+my_plot
+
+ggsave(filename = "eurovision_best.png", my_plot,
+      units = "px", dpi = 320, bg = "white",
+      width = 2500, height = 2500)
+```
+
