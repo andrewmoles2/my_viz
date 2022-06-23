@@ -88,7 +88,8 @@ my_plot <- country_agg %>%
        y = "Countries percent win ratio: (wins/number years competing)",
        caption = "<your name> MISDI code camp") +
   scale_x_continuous(breaks = seq(from = 0, to = 200, by = 25)) +
-  scale_y_continuous(breaks = seq(from = 0, to = 20, by = 2)) +
+  scale_y_continuous(breaks = seq(from = 0, to = 20, by = 2),
+                     labels = scales::label_percent(scale = 1)) +
   theme_minimal(base_family = "Avenir")
 
 my_plot
